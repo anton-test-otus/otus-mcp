@@ -1,0 +1,9 @@
+data/notes.db
+data/images/
+__pycache__/
+*.py[cod]
+.venv/
+uv.lock
+.python-version
+dist/
+*.egg-info/

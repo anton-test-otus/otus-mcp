@@ -1,0 +1,31 @@
+[project]
+name = "notes-mcp"
+version = "0.1.0"
+description = "Notes/knowledge MCP with OCR (Tesseract in Docker), web UI, and full-text search"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.6.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.31.0",
+    "python-multipart>=0.0.9",
+    "pillow>=10.0.0",
+    "pytesseract>=0.3.10",
+]
+
+[project.scripts]
+notes-mcp = "notes_mcp.server:main"
+notes-web = "notes_mcp.web.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/notes_mcp"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/notes_mcp/web/static" = "notes_mcp/web/static"
+
+[tool.hatch.build]
+sources = ["src"]

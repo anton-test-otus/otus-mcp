@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>База знаний</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="header">
+    <div>
+      <h1>База знаний</h1>
+      <p class="subtitle">Скриншоты · OCR · поиск · MCP для вашей модели</p>
+    </div>
+    <span id="health" class="badge">проверка…</span>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="search" role="tab">Поиск</button>
+    <button class="tab" data-tab="upload" role="tab">Загрузка</button>
+    <button class="tab" data-tab="settings" role="tab">Настройки</button>
+  </nav>
+
+  <main>
+    <section id="panel-search" class="panel active">
+      <form id="search-form" class="card">
+        <label for="search-query">Поиск по тексту заметок и OCR</label>
+        <div class="row">
+          <input id="search-query" type="search" placeholder="например, таймаут подключения" required />
+          <button type="submit">Искать</button>
+        </div>
+      </form>
+      <div id="search-results" class="results"></div>
+      <h2 class="section-title">Последние заметки</h2>
+      <div id="notes-list" class="results"></div>
+    </section>
+
+    <section id="panel-upload" class="panel">
+      <form id="upload-form" class="card" enctype="multipart/form-data">
+        <label for="upload-title">Заголовок</label>
+        <input id="upload-title" name="title" required placeholder="Название скриншота" />
+
+        <label for="upload-body">Описание (необязательно)</label>
+        <textarea id="upload-body" name="body" rows="3" placeholder="Контекст для этого изображения…"></textarea>
+
+        <label for="upload-file">Изображение (скриншот / печатный текст)</label>
+        <input id="upload-file" name="file" type="file" accept="image/*" required />
+
+        <label for="upload-ocr-lang">Языки OCR (Tesseract)</label>
+        <input id="upload-ocr-lang" name="ocr_lang" value="rus+eng" placeholder="rus+eng" />
+        <p class="hint">Только русский: <code>rus</code>. Смешанный текст: <code>rus+eng</code>.</p>
+
+        <button type="submit" class="primary">Загрузить и распознать</button>
+      </form>
+      <pre id="upload-result" class="code hidden"></pre>
+    </section>
+
+    <section id="panel-settings" class="panel">
+      <form id="settings-form" class="card">
+        <h2>Подключение модели</h2>
+        <p class="hint">Для будущего чата в интерфейсе. MCP-клиенты используют URL ниже.</p>
+
+        <label for="model-provider">Провайдер</label>
+        <select id="model-provider" name="model_provider">
+          <option value="openai">Совместимый с OpenAI</option>
+          <option value="anthropic">Anthropic (вручную)</option>
+          <option value="other">Другой</option>
+        </select>
+
+        <label for="model-name">Имя модели</label>
+        <input id="model-name" name="model_name" placeholder="gpt-4o" />
+
+        <label for="openai-base-url">Базовый URL API</label>
+        <input id="openai-base-url" name="openai_base_url" placeholder="https://api.openai.com/v1" />
+
+        <label for="openai-api-key">Ключ API</label>
+        <input id="openai-api-key" name="openai_api_key" type="password" autocomplete="off" placeholder="sk-…" />
+
+        <label for="ocr-lang-setting">Языки OCR по умолчанию</label>
+        <input id="ocr-lang-setting" name="ocr_lang" value="rus+eng" placeholder="rus+eng" />
+
+        <h2>Точка входа MCP</h2>
+        <label for="mcp-public-url">Публичный URL MCP (streamable-http)</label>
+        <input id="mcp-public-url" name="mcp_public_url" placeholder="http://localhost:8080/mcp" />
+
+        <button type="submit" class="primary">Сохранить настройки</button>
+      </form>
+
+      <div class="card">
+        <h2>Конфиг Cursor MCP</h2>
+        <p class="hint">Скопируйте в <code>.cursor/mcp.json</code> (или глобальные настройки MCP), затем перезапустите Cursor.</p>
+        <pre id="cursor-config" class="code"></pre>
+        <button type="button" id="copy-config" class="secondary">Копировать JSON</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <div id="image-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Просмотр изображения">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-content">
+      <button type="button" class="modal-close" data-close-modal aria-label="Закрыть">&times;</button>
+      <p id="modal-caption" class="modal-caption"></p>
+      <img id="modal-image" alt="Просмотр скриншота" />
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
