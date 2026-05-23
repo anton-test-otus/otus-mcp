@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import inspect
 import json
-from typing import Any
+import logging
+from functools import wraps
+from typing import Any, Callable
 
 from mcp.server.fastmcp import FastMCP
 
@@ -12,6 +15,12 @@ from notes_mcp.config import DEFAULT_OCR_LANG
 from notes_mcp.db import ImageNotFoundError, NoteNotFoundError
 from notes_mcp.ocr import OcrError
 from notes_mcp.storage import ImageValidationError
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("notes_mcp.mcp")
 
 mcp = FastMCP(
     "notes-knowledge",
@@ -29,7 +38,55 @@ def _json(data: Any) -> str:
     return json.dumps(data, indent=2, ensure_ascii=False)
 
 
-@mcp.tool()
+_SENSITIVE_SUBSTRINGS = ("key", "secret", "token", "password")
+
+
+def _redact_param(name: str, value: Any) -> Any:
+    if any(part in name.lower() for part in _SENSITIVE_SUBSTRINGS):
+        return "***"
+    if isinstance(value, str) and len(value) > 500:
+        return value[:500] + "…"
+    return value
+
+
+def logged_tool(func: Callable[..., str]) -> Callable[..., str]:
+    """Register an MCP tool and log each invocation (params redacted, no secrets)."""
+
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> str:
+        sig = inspect.signature(func)
+        bound = sig.bind_partial(*args, **kwargs)
+        bound.apply_defaults()
+        params = {k: _redact_param(k, v) for k, v in bound.arguments.items()}
+        logger.info("MCP tool call name=%s params=%s", func.__name__, params)
+        try:
+            result = func(*args, **kwargs)
+            if isinstance(result, str):
+                try:
+                    payload = json.loads(result)
+                    if isinstance(payload, dict) and "error" in payload:
+                        logger.warning(
+                            "MCP tool result name=%s status=error detail=%s",
+                            func.__name__,
+                            payload.get("error"),
+                        )
+                        return result
+                except json.JSONDecodeError:
+                    pass
+            logger.info("MCP tool result name=%s status=success", func.__name__)
+            return result
+        except Exception as exc:
+            logger.exception(
+                "MCP tool result name=%s status=error error=%s",
+                func.__name__,
+                exc,
+            )
+            raise
+
+    return mcp.tool()(wrapper)
+
+
+@logged_tool
 def create_note(
     title: str,
     body: str = "",
@@ -44,7 +101,7 @@ def create_note(
         return _json({"error": str(exc)})
 
 
-@mcp.tool()
+@logged_tool
 def update_note(
     note_id: str,
     title: str | None = None,
@@ -58,7 +115,7 @@ def update_note(
         return _json({"error": str(exc)})
 
 
-@mcp.tool()
+@logged_tool
 def add_image(
     note_id: str,
     image_path: str,
@@ -73,7 +130,7 @@ def add_image(
         return _json({"error": str(exc)})
 
 
-@mcp.tool()
+@logged_tool
 def reprocess_image(image_id: str, ocr_lang: str = DEFAULT_OCR_LANG) -> str:
     """Re-run Tesseract OCR on a stored image."""
     try:
@@ -84,7 +141,7 @@ def reprocess_image(image_id: str, ocr_lang: str = DEFAULT_OCR_LANG) -> str:
         return _json({"error": str(exc)})
 
 
-@mcp.tool()
+@logged_tool
 def search_notes(query: str, limit: int = 20, offset: int = 0) -> str:
     """Full-text search across note titles, bodies, and OCR text from images."""
     try:
@@ -93,7 +150,7 @@ def search_notes(query: str, limit: int = 20, offset: int = 0) -> str:
         return _json({"error": str(exc)})
 
 
-@mcp.tool()
+@logged_tool
 def get_note(note_id: str, include_images: bool = True) -> str:
     """Fetch a note by id."""
     try:
@@ -104,14 +161,14 @@ def get_note(note_id: str, include_images: bool = True) -> str:
         return _json({"error": str(exc)})
 
 
-@mcp.tool()
+@logged_tool
 def list_notes(limit: int = 50, offset: int = 0) -> str:
     """List notes ordered by most recently updated."""
     notes = db.list_notes(limit=limit, offset=offset)
     return _json({"count": len(notes), "notes": [service._note_dict(n) for n in notes]})
 
 
-@mcp.tool()
+@logged_tool
 def delete_note(note_id: str) -> str:
     """Delete a note, its images, and FTS index entries."""
     try:

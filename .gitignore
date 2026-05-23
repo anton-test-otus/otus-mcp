@@ -1,5 +1,6 @@
 data/notes.db
 data/images/
+.env
 __pycache__/
 *.py[cod]
 .venv/
